@@ -44,7 +44,6 @@ llm = "gpt-4-turbo-preview"
 
 # create the open-source embedding function
 # embd = SentenceTransformerEmbeddings(model_name="all-MiniLM-L6-v2")
-model = ChatOpenAI(temperature=0, model=llm)
 
 # if 'gpt' in llm:
 #     print("Using OpenAI GPT")
@@ -75,8 +74,12 @@ class ReportAnalysis:
         self.extractor = ExtractorApi(sec_api_key)
         self.llm_client = OpenAI(api_key=openai_api_key)
         self.report_address = self.get_sec_report_address()
-        self.embd = OpenAIEmbeddings(openai_api_key=openai_api_key)
-        self.rag_helper = Raptor(model, self.embd)
+        embd = OpenAIEmbeddings(openai_api_key=openai_api_key)
+        model = ChatOpenAI(
+            openai_api_key=openai_api_key,
+            temperature=0, model=llm,
+        )
+        self.rag_helper = Raptor(model, embd)
 
         # self.system_prompt_v3 = """
         self.system_prompt = f"""
