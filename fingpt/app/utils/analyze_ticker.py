@@ -73,7 +73,7 @@ class ReportAnalysis:
         os.makedirs(self.project_dir, exist_ok=True)
         self.extractor = ExtractorApi(sec_api_key)
         self.llm_client = OpenAI(api_key=openai_api_key)
-        self.report_address = self.get_sec_report_address()
+        self.report_address = self.get_sec_report_address(sec_api_key)
         embd = OpenAIEmbeddings(openai_api_key=openai_api_key)
         model = ChatOpenAI(
             openai_api_key=openai_api_key,
@@ -176,7 +176,7 @@ class ReportAnalysis:
         plt.close()
         return plot_path
 
-    def get_sec_report_address(self):
+    def get_sec_report_address(self, sec_api_key):
         address_json = f"{self.project_dir}/sec_report_address.json"
         if not os.path.exists(address_json):
             endpoint = f"https://api.sec-api.io?token={sec_api_key}"

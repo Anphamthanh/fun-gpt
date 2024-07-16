@@ -27,7 +27,8 @@ async def gen_ticker_report(req: TickerReqDto):
         return JSONResponse(content=json.loads(report_json))
     except Exception as e:
         logger.error(f"Error generating report: {str(e)}")
-        raise HTTPException(status_code=500, detail="Internal server error")
+        raise HTTPException(
+            status_code=500, detail="Internal server error: " + str(e))
 
 
 # Edit this to add the chain you want to add
