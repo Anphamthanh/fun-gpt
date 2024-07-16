@@ -12,7 +12,7 @@ from .analyze_utils import get_earnings_transcript, Raptor
 from langchain_community.embeddings.sentence_transformer import (
     SentenceTransformerEmbeddings,
 )
-from langchain_openai import ChatOpenAI
+from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain_community.vectorstores import Chroma
 from langchain_core.output_parsers import StrOutputParser
 from langchain import hub
@@ -42,9 +42,9 @@ llm = "gpt-4-turbo-preview"
 # llm = "llama2"
 # llm = "openchat"
 
-# embd = OpenAIEmbeddings()
+embd = OpenAIEmbeddings()
 # create the open-source embedding function
-embd = SentenceTransformerEmbeddings(model_name="all-MiniLM-L6-v2")
+# embd = SentenceTransformerEmbeddings(model_name="all-MiniLM-L6-v2")
 model = ChatOpenAI(temperature=0, model=llm)
 rag_helper = Raptor(model, embd)
 

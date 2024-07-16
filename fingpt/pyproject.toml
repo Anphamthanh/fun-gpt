@@ -24,7 +24,6 @@ scikit-learn = "^1.5.1"
 langchain-community = "^0.2.7"
 langchain-openai = "^0.1.16"
 python-dotenv = "^1.0.1"
-sentence-transformers = "^3.0.1"
 
 
 [tool.poetry.group.dev.dependencies]
