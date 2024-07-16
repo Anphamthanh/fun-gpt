@@ -7,6 +7,7 @@ import json
 import numpy as np
 from openai import OpenAI
 import os
+import json
 from .analyze_utils import get_earnings_transcript, Raptor
 from langchain_community.embeddings.sentence_transformer import (
     SentenceTransformerEmbeddings,
@@ -17,12 +18,12 @@ from langchain_core.output_parsers import StrOutputParser
 from langchain import hub
 from langchain_core.runnables import RunnablePassthrough
 
-from reportlab.lib import colors
-from reportlab.lib import pagesizes
-from reportlab.platypus import SimpleDocTemplate, Frame, Paragraph, Image, PageTemplate, FrameBreak, Spacer, Table, TableStyle, NextPageTemplate, PageBreak
-from reportlab.lib.units import inch
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.enums import TA_JUSTIFY, TA_LEFT
+# from reportlab.lib import colors
+# from reportlab.lib import pagesizes
+# from reportlab.platypus import SimpleDocTemplate, Frame, Paragraph, Image, PageTemplate, FrameBreak, Spacer, Table, TableStyle, NextPageTemplate, PageBreak
+# from reportlab.lib.units import inch
+# from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+# from reportlab.lib.enums import TA_JUSTIFY, TA_LEFT
 
 from dotenv import load_dotenv
 
@@ -35,7 +36,7 @@ LANGCHAIN_PROJECT = "llmops-sample"
 
 ticker_symbol = "NVDA"  # The ticker symbol of the company. US stock only.
 # Your SEC API key, get it from https://sec-api.io/ for free.
-sec_api_key = os.environ.get("SEC_API_KEY")
+# sec_api_key = os.environ.get("SEC_API_KEY")
 
 llm = "gpt-4-turbo-preview"
 # llm = "llama2"
@@ -47,28 +48,34 @@ embd = SentenceTransformerEmbeddings(model_name="all-MiniLM-L6-v2")
 model = ChatOpenAI(temperature=0, model=llm)
 rag_helper = Raptor(model, embd)
 
-if 'gpt' in llm:
-    print("Using OpenAI GPT")
-    client = OpenAI(
-        # This is the default and can be omitted
-        api_key=os.environ.get("OPENAI_API_KEY"),
-    )
-else:
-    print("Using local LLM, make sure you have installed Ollama (https://ollama.com/download) and have it running")
-    client = OpenAI(
-        base_url='http://localhost:11434/v1',
-        api_key='ollama',  # required, but unused
-    )
+# if 'gpt' in llm:
+#     print("Using OpenAI GPT")
+#     client = OpenAI(
+#         # This is the default and can be omitted
+#         api_key=os.environ.get("OPENAI_API_KEY"),
+#     )
+# else:
+#     print("Using local LLM, make sure you have installed Ollama (https://ollama.com/download) and have it running")
+#     client = OpenAI(
+#         base_url='http://localhost:11434/v1',
+#         api_key='ollama',  # required, but unused
+#     )
 
 
 class ReportAnalysis:
-    def __init__(self, ticker_symbol):
+    def __init__(
+        self,
+        ticker_symbol: str,
+        sec_api_key: str,
+        openai_api_key: str,
+    ):
         self.ticker_symbol = ticker_symbol
         self.stock = yf.Ticker(ticker_symbol)
         self.info = self.stock.info
         self.project_dir = f"projects/{ticker_symbol}/"
         os.makedirs(self.project_dir, exist_ok=True)
         self.extractor = ExtractorApi(sec_api_key)
+        self.llm_client = OpenAI(api_key=openai_api_key)
         self.report_address = self.get_sec_report_address()
 
         # self.system_prompt_v3 = """
@@ -454,7 +461,7 @@ class ReportAnalysis:
             else:
                 prompt = f"{self.system_prompt}\n\nResource: {section_text}\n\nQuestion: {question}"
 
-            chat_completion = client.chat.completions.create(
+            chat_completion = self.llm_client.chat.completions.create(
                 messages=[
                     {
                         "role": "user",
@@ -471,213 +478,29 @@ class ReportAnalysis:
         return answer
 
 
-def generate_financial_report(ticker_symbol):
-    ra = ReportAnalysis(ticker_symbol)
+def generate_financial_report(
+    ticker_symbol: str,
+    sec_api_key: str,
+    openai_api_key: str,
+):
+    ra = ReportAnalysis(ticker_symbol, sec_api_key, openai_api_key)
     report_data = ra.financial_summarization()
     report_data['Company Info'] = ra.get_company_info()
     report_data['Analyst Recommendations'] = ra.get_analyst_recommendations()
     report_data['Key Data'] = ra.get_key_data()
     # Assuming these DataFrames are formatted and reduced for the JSON output as necessary
-    report_data['Income Statement'] = ra.get_income_stmt().to_dict()
-    report_data['Cash Flow'] = ra.get_cash_flow().to_dict()
+    report_data['Income Statement'] = ra.get_income_stmt().to_csv()
+    # print(report_data['Income Statement'])
+    report_data['Cash Flow'] = ra.get_cash_flow().to_csv()
 
     return report_data
+    # return json.dumps(report_data, cls=NumpyEncoder)
 
 
 # Example usage
-ticker_symbol = 'TSLA'
-report_json = generate_financial_report(ticker_symbol)
-print(report_json)
-
-# ra = ReportAnalysis(ticker_symbol)
-# answer = ra.financial_summarization()
-# answer.keys()
-
-# page_width, page_height = pagesizes.A4
-# left_column_width = page_width * 2/3
-# right_column_width = page_width - left_column_width
-# margin = 4
-
-# pdf_path = os.path.join(ra.project_dir, f"{ticker_symbol}_report_{llm}-v4.pdf")
-# doc = SimpleDocTemplate(pdf_path, pagesize=pagesizes.A4)
-
-# frame_left = Frame(margin, margin, left_column_width -
-#                    margin*2, page_height-margin*2, id='left')
-# frame_right = Frame(left_column_width, margin, right_column_width -
-#                     margin*2, page_height-margin*2, id='right')
-
-# # single_frame = Frame(margin, margin, page_width-margin*2, page_height-margin*2, id='single')
-# # single_column_layout = PageTemplate(id='OneCol', frames=[single_frame])
-
-# left_column_width_p2 = (page_width-margin*3) // 2
-# right_column_width_p2 = left_column_width_p2
-# frame_left_p2 = Frame(margin, margin, left_column_width_p2 -
-#                       margin*2, page_height-margin*2, id='left')
-# frame_right_p2 = Frame(left_column_width_p2, margin,
-#                        right_column_width_p2-margin*2, page_height-margin*2, id='right')
-
-# page_template = PageTemplate(id='TwoColumns', frames=[frame_left, frame_right])
-# page_template_p2 = PageTemplate(id='TwoColumns_p2', frames=[
-#                                 frame_left_p2, frame_right_p2])
-# doc.addPageTemplates([page_template, page_template_p2])
-
-# styles = getSampleStyleSheet()
-
-# custom_style = ParagraphStyle(
-#     name="Custom",
-#     parent=styles['Normal'],
-#     fontName="Helvetica",
-#     fontSize=10,
-#     # leading=15,
-#     alignment=TA_JUSTIFY,
-# )
-
-# title_style = ParagraphStyle(
-#     name="TitleCustom",
-#     parent=styles['Title'],
-#     fontName="Helvetica-Bold",
-#     fontSize=16,
-#     leading=20,
-#     alignment=TA_LEFT,
-#     spaceAfter=10,
-# )
-
-# subtitle_style = ParagraphStyle(
-#     name="Subtitle",
-#     parent=styles['Heading2'],
-#     fontName="Helvetica-Bold",
-#     fontSize=14,
-#     leading=12,
-#     alignment=TA_LEFT,
-#     spaceAfter=6,
-# )
-
-# content = []
-# content.append(Paragraph(
-#     f"Equity Research Report Using FinGPT: {ra.get_company_info()['Company Name']}", title_style))
-
-# content.append(Paragraph("Income Statement Analysis", subtitle_style))
-# content.append(Paragraph(answer['Income Statement Analysis'], custom_style))
-
-# content.append(Paragraph("Balance Sheet Analysis", subtitle_style))
-# content.append(Paragraph(answer['Balance Sheet Analysis'], custom_style))
-
-# content.append(Paragraph("Cashflow Analysis", subtitle_style))
-# content.append(Paragraph(answer['Cash Flow Analysis'], custom_style))
-
-# content.append(Paragraph("Summarization", subtitle_style))
-# content.append(Paragraph(answer['Financial Summary'], custom_style))
-
-
-# content.append(FrameBreak())
-
-# table_style = TableStyle([
-#     ('BACKGROUND', (0, 0), (-1, -1), colors.white),
-#     ('BACKGROUND', (0, 0), (-1, 0), colors.white),
-#     ('FONT', (0, 0), (-1, -1), 'Helvetica', 8),
-#     ('FONT', (0, 0), (-1, 0), 'Helvetica-Bold', 12),
-#     ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-#     ('ALIGN', (0, 1), (0, -1), 'LEFT'),
-#     ('ALIGN', (1, 1), (1, -1), 'RIGHT'),
-#     ('LINEBELOW', (0, 0), (-1, 0), 2, colors.black),
-# ])
-# full_length = right_column_width-2*margin
-
-# rating, _ = ra.get_analyst_recommendations()
-
-# data = [["Rating:", rating.upper()]]
-# col_widths = [full_length//3*2, full_length//3]
-# table = Table(data, colWidths=col_widths)
-# table.setStyle(table_style)
-# content.append(table)
-
-# # content.append(Paragraph("", custom_style))
-# content.append(Spacer(1, 0.15*inch))
-# key_data = ra.get_key_data()
-# data = [["Key data", ""]]
-# data += [
-#     [k, v] for k, v in key_data.items()
-# ]
-# col_widths = [full_length//3*2, full_length//3]
-# table = Table(data, colWidths=col_widths)
-# table.setStyle(table_style)
-# content.append(table)
-
-
-# # Matplotlib
-
-# data = [["Share Performance"]]
-# col_widths = [full_length]
-# table = Table(data, colWidths=col_widths)
-# table.setStyle(table_style)
-# content.append(table)
-
-# plot_path = ra.get_stock_performance()
-# width = right_column_width
-# height = width//2
-# content.append(Image(plot_path, width=width, height=height))
-
-
-# content.append(NextPageTemplate('TwoColumns_p2'))
-# content.append(PageBreak())
-
-# table_style2 = TableStyle([
-#     ('BACKGROUND', (0, 0), (-1, -1), colors.white),
-#     ('BACKGROUND', (0, 0), (-1, 0), colors.white),
-#     ('FONT', (0, 0), (-1, -1), 'Helvetica', 6),
-#     ('FONT', (0, 0), (-1, 0), 'Helvetica-Bold', 10),
-#     ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-#     ('ALIGN', (0, 1), (0, -1), 'LEFT'),
-#     ('ALIGN', (1, 1), (1, -1), 'RIGHT'),
-#     ('LINEBELOW', (0, 0), (-1, 0), 2, colors.black),
-#     ('LINEBELOW', (0, -1), (-1, -1), 2, colors.black),
-# ])
-
-
-# df = ra.get_income_stmt()
-# df = df[df.columns[:3]]
-
-
-# def convert_if_money(value):
-#     if np.abs(value) >= 1000000:
-#         return value / 1000000
-#     else:
-#         return value
-
-
-# df = df.map(convert_if_money)
-
-# df.columns = [col.strftime('%Y') for col in df.columns]
-# df.reset_index(inplace=True)
-# currency = ra.info['currency']
-# df.rename(columns={'index': f'FY ({currency} mn)'}, inplace=True)
-# table_data = [["Income Statement"]]
-# table_data += [df.columns.to_list()] + df.values.tolist()
-
-# table = Table(table_data)
-# table.setStyle(table_style2)
-# content.append(table)
-
-# content.append(FrameBreak())
-
-# df = ra.get_cash_flow()
-# df = df[df.columns[:3]]
-
-# df = df.map(convert_if_money)
-
-# df.columns = [col.strftime('%Y') for col in df.columns]
-# df.reset_index(inplace=True)
-# currency = ra.info['currency']
-# df.rename(columns={'index': f'FY ({currency} mn)'}, inplace=True)
-# table_data = [["Cash Flow Sheet"]]
-# table_data += [df.columns.to_list()] + df.values.tolist()
-
-# table = Table(table_data)
-# table.setStyle(table_style2)
-# content.append(table)
-# # content.append(Paragraph('This is a single column on the second page', custom_style))
-# # content.append(Spacer(1, 0.2*inch))
-# # content.append(Paragraph('More content in the single column.', custom_style))
-
-# # build the pdf
-# doc.build(content)
+# ticker_symbol = 'NVDA'
+# report_json = generate_financial_report(ticker_symbol)
+# print(type(report_json))
+# print(report_json)
+# print(json.dumps(report_json, cls=NumpyEncoder))
+# print(json.dumps(report_json))
