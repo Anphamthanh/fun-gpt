@@ -34,11 +34,11 @@ LANGCHAIN_ENDPOINT = "https://api.smith.langchain.com"
 LANGCHAIN_API_KEY = os.environ.get("LANGCHAIN_API_KEY")
 LANGCHAIN_PROJECT = "llmops-sample"
 
-ticker_symbol = "NVDA"  # The ticker symbol of the company. US stock only.
+# ticker_symbol = "NVDA"  # The ticker symbol of the company. US stock only.
 # Your SEC API key, get it from https://sec-api.io/ for free.
 # sec_api_key = os.environ.get("SEC_API_KEY")
 
-llm = "gpt-4-turbo-preview"
+# llm = "gpt-4o"
 # llm = "llama2"
 # llm = "openchat"
 
@@ -65,71 +65,83 @@ class ReportAnalysis:
         ticker_symbol: str,
         sec_api_key: str,
         openai_api_key: str,
+        llm_name: str
     ):
         self.ticker_symbol = ticker_symbol
+        self.llm_name = llm_name
         self.stock = yf.Ticker(ticker_symbol)
         self.info = self.stock.info
         self.project_dir = f"projects/{ticker_symbol}/"
         os.makedirs(self.project_dir, exist_ok=True)
         self.extractor = ExtractorApi(sec_api_key)
-        self.llm_client = OpenAI(api_key=openai_api_key)
+        if 'gpt' in self.llm_name:
+            print("Using OpenAI GPT")
+            self.llm_client = OpenAI(api_key=openai_api_key)
+        else:
+            print("Using: ", {self.llm_name})
+            print("Using local LLM, make sure you have installed Ollama (https://ollama.com/download) and have it running")
+            self.llm_client = OpenAI(
+                base_url='http://localhost:11434/v1',
+                api_key='ollama',  # required, but unused
+            )
+                
         self.report_address = self.get_sec_report_address(sec_api_key)
-        embd = OpenAIEmbeddings(openai_api_key=openai_api_key)
-        model = ChatOpenAI(
+        # self.embd = OpenAIEmbeddings(openai_api_key=openai_api_key)
+        self.embd = SentenceTransformerEmbeddings(model_name="all-MiniLM-L6-v2")
+        self.model = ChatOpenAI(
             openai_api_key=openai_api_key,
-            temperature=0, model=llm,
+            temperature=0, model=self.llm_name,
         )
-        self.rag_helper = Raptor(model, embd)
+        self.rag_helper = Raptor(self.model, self.embd)
 
         # self.system_prompt_v3 = """
         self.system_prompt = f"""
-            Role: Expert Investor in {self.stock.info['industry']}
-            Department: Finance
-            Primary Responsibility: Generation of Customized Financial Analysis Reports
+Role: Expert Investor in {self.stock.info['industry']}
+Department: Finance
+Primary Responsibility: Generation of Customized Financial Analysis Reports
 
-            Role Description: As an Expert Investor within the finance domain, your expertise is harnessed to develop
-            bespoke Financial Analysis Reports that cater to specific client requirements. This role demands a deep
-            dive into financial statements and market data to unearth insights regarding a company's financial
-            performance and stability. Engaging directly with clients to gather essential information and
-            continuously refining the report with their feedback ensures the final product precisely meets their
-            needs and expectations. Generate reports similar quality to Goldman Sachs.
+Role Description: As an Expert Investor within the finance domain, your expertise is harnessed to develop
+bespoke Financial Analysis Reports that cater to specific client requirements. This role demands a deep
+dive into financial statements and market data to unearth insights regarding a company's financial
+performance and stability. Engaging directly with clients to gather essential information and
+continuously refining the report with their feedback ensures the final product precisely meets their
+needs and expectations. Generate reports similar quality to Goldman Sachs.
 
-            Key Objectives:
+Key Objectives:
 
-            Analytical Precision: Employ meticulous analytical prowess to interpret financial data, identifying
-            underlying trends and anomalies. Effective Communication: Simplify and effectively convey complex
-            financial narratives, making them accessible and actionable to non-specialist audiences. Client Focus:
-            Dynamically tailor reports in response to client feedback, ensuring the final analysis aligns with their
-            strategic objectives. Adherence to Excellence: Maintain the highest standards of quality and integrity in
-            report generation, following established benchmarks for analytical rigor. Performance Indicators: The
-            efficacy of the Financial Analysis Report is measured by its utility in providing clear, actionable
-            insights. This encompasses aiding corporate decision-making, pinpointing areas for operational
-            enhancement, and offering a lucid evaluation of the company's financial health. Success is ultimately
-            reflected in the report's contribution to informed investment decisions and strategic planning.
+Analytical Precision: Employ meticulous analytical prowess to interpret financial data, identifying
+underlying trends and anomalies. Effective Communication: Simplify and effectively convey complex
+financial narratives, making them accessible and actionable to non-specialist audiences. Client Focus:
+Dynamically tailor reports in response to client feedback, ensuring the final analysis aligns with their
+strategic objectives. Adherence to Excellence: Maintain the highest standards of quality and integrity in
+report generation, following established benchmarks for analytical rigor. Performance Indicators: The
+efficacy of the Financial Analysis Report is measured by its utility in providing clear, actionable
+insights. This encompasses aiding corporate decision-making, pinpointing areas for operational
+enhancement, and offering a lucid evaluation of the company's financial health. Success is ultimately
+reflected in the report's contribution to informed investment decisions and strategic planning.
 
-            Technology Integration:
+Technology Integration:
 
-            Utilize advanced FinTech tools for data analysis, including: Sentiment Analysis Platforms: Leverage
-            AI-powered platforms to analyze public sentiment towards company and its products, gauging potential market
-            reception for upcoming releases. Alternative Data Providers: Access and analyze alternative data sets
-            sourced from web traffic, app downloads, and social media engagement to gain deeper insights into
-            consumer behavior and market trends. Financial Modeling Software: Employ sophisticated
-            financial modeling software to conduct scenario analyses, stress tests, and valuation calculations for
-            company stock. By including these specific examples, you demonstrate how the Expert Investor stays ahead
-            of the curve by leveraging cutting-edge FinTech tools to enrich their analysis and provide more
-            comprehensive insights for clients.
+Utilize advanced FinTech tools for data analysis, including: Sentiment Analysis Platforms: Leverage
+AI-powered platforms to analyze public sentiment towards company and its products, gauging potential market
+reception for upcoming releases. Alternative Data Providers: Access and analyze alternative data sets
+sourced from web traffic, app downloads, and social media engagement to gain deeper insights into
+consumer behavior and market trends. Financial Modeling Software: Employ sophisticated
+financial modeling software to conduct scenario analyses, stress tests, and valuation calculations for
+company stock. By including these specific examples, you demonstrate how the Expert Investor stays ahead
+of the curve by leveraging cutting-edge FinTech tools to enrich their analysis and provide more
+comprehensive insights for clients.
 
-            Benchmarking:
+Benchmarking:
 
-            Utilize a multi-faceted approach to ensure the highest standards of analytical rigor: Industry Best
-            Practices: Apply financial valuation methodologies recommended by reputable institutions like Aswath
-            Damodaran or industry-specific valuation metrics relevant to the Consumer Electronics sector. Peer Group
-            Comparison: Benchmark Company's financial performance against its major competitors in sector,
-            identifying areas of strength and weakness. Regulatory Standards: Ensure all financial analysis adheres
-            to Generally Accepted Accounting Principles (GAAP) and discloses any potential conflicts of interest or
-            limitations in the analysis.
-
-            """
+Utilize a multi-faceted approach to ensure the highest standards of analytical rigor: Industry Best
+Practices: Apply financial valuation methodologies recommended by reputable institutions like Aswath
+Damodaran or industry-specific valuation metrics relevant to the Consumer Electronics sector. Peer Group
+Comparison: Benchmark Company's financial performance against its major competitors in sector,
+identifying areas of strength and weakness. Regulatory Standards: Ensure all financial analysis adheres
+to Generally Accepted Accounting Principles (GAAP) and discloses any potential conflicts of interest or
+limitations in the analysis.
+"""
 
     def get_stock_performance(self):
         def fetch_stock_data(ticker, period="1y"):
@@ -153,11 +165,11 @@ class ReportAnalysis:
         plt.rcParams.update({'font.size': 20})
         plt.figure(figsize=(14, 7))
         plt.plot(ticker_change.index, ticker_change,
-                 label=ticker_symbol + ' Change %', color='blue')
+                 label=self.ticker_symbol + ' Change %', color='blue')
         plt.plot(sp500_change.index, sp500_change,
                  label='S&P 500 Change %', color='red')
 
-        plt.title(ticker_symbol + ' vs S&P 500 - Change % Over the Past Year')
+        plt.title(self.ticker_symbol + ' vs S&P 500 - Change % Over the Past Year')
         plt.xlabel('Date')
         plt.ylabel('Change %')
 
@@ -310,11 +322,11 @@ class ReportAnalysis:
                 section_text, chunk_size_tok=2000, level=1, n_levels=3)
 
             vectorstore = Chroma.from_texts(
-                texts=all_texts, embedding=embd, persist_directory=vector_dir)
+                texts=all_texts, embedding=self.embd, persist_directory=vector_dir)
             vectorstore.persist()
         else:
             vectorstore = Chroma(
-                persist_directory=vector_dir, embedding_function=embd)
+                persist_directory=vector_dir, embedding_function=self.embd)
             vectorstore.get()
         retriever = vectorstore.as_retriever()
 
@@ -326,7 +338,7 @@ class ReportAnalysis:
             # {"context": retriever | format_docs, "question": RunnablePassthrough()}
             {"context": retriever, "question": RunnablePassthrough()}
             | prompt
-            | model
+            | self.model
             | StrOutputParser()
         )
 
@@ -463,7 +475,8 @@ class ReportAnalysis:
                 prompt = f"{self.system_prompt}\n\n{table_str}\n\nResource: {section_text}\n\nQuestion: {question}"
             else:
                 prompt = f"{self.system_prompt}\n\nResource: {section_text}\n\nQuestion: {question}"
-
+            # print(prompt)
+            print("--------------------------------------------------------------------------------------------")
             chat_completion = self.llm_client.chat.completions.create(
                 messages=[
                     {
@@ -471,7 +484,7 @@ class ReportAnalysis:
                         "content": prompt.strip(),
                     }
                 ],
-                model=llm,
+                model=self.llm_name,
                 temperature=0,
                 max_tokens=300,
                 # response_format={ "type": "json_object" },
@@ -485,8 +498,9 @@ def generate_financial_report(
     ticker_symbol: str,
     sec_api_key: str,
     openai_api_key: str,
+    llm_name: str
 ):
-    ra = ReportAnalysis(ticker_symbol, sec_api_key, openai_api_key)
+    ra = ReportAnalysis(ticker_symbol, sec_api_key, openai_api_key, llm_name)
     report_data = ra.financial_summarization()
     report_data['Company Info'] = ra.get_company_info()
     report_data['Analyst Recommendations'] = ra.get_analyst_recommendations()
@@ -495,6 +509,8 @@ def generate_financial_report(
     report_data['Income Statement'] = ra.get_income_stmt().to_csv()
     # print(report_data['Income Statement'])
     report_data['Cash Flow'] = ra.get_cash_flow().to_csv()
+    # print(report_data['Cash Flow'])
+    # print(ra.get_balance_sheet())
 
     return report_data
     # return json.dumps(report_data, cls=NumpyEncoder)

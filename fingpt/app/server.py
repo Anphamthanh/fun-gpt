@@ -4,9 +4,13 @@ from langserve import add_routes
 import logging
 import json
 
-from app.entities.apis import TickerReqDto
-from app.utils.analyze_ticker import generate_financial_report
-from app.utils.misc import NumpyEncoder
+# from app.entities.apis import TickerReqDto
+# from app.utils.analyze_ticker import generate_financial_report
+# from app.utils.misc import NumpyEncoder
+
+from entities.apis import TickerReqDto
+from utils.analyze_ticker import generate_financial_report
+from utils.misc import NumpyEncoder
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("FinGPT")
@@ -22,6 +26,7 @@ async def gen_ticker_report(req: TickerReqDto):
             req.symbol,
             req.sec_api_key,
             req.llm_api_key,
+            req.llm_name
         )
         report_json = json.dumps(report, cls=NumpyEncoder)
         return JSONResponse(content=json.loads(report_json))
@@ -37,4 +42,4 @@ async def gen_ticker_report(req: TickerReqDto):
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=8007)
