@@ -1,0 +1,34 @@
+[tool.poetry]
+name = "fingpt"
+version = "0.1.0"
+description = ""
+authors = ["Your Name <you@example.com>"]
+readme = "README.md"
+packages = [
+    { include = "app" },
+]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+uvicorn = "^0.23.2"
+langserve = {extras = ["server"], version = ">=0.0.30"}
+pydantic = "^2.7.4"
+yfinance = "^0.2.40"
+matplotlib = "^3.9.1"
+pandas = "^2.2.2"
+sec-api = "^1.0.18"
+openai = "^1.35.14"
+umap = "^0.1.1"
+langchain = "^0.2.8"
+scikit-learn = "^1.5.1"
+langchain-community = "^0.2.7"
+langchain-openai = "^0.1.16"
+python-dotenv = "^1.0.1"
+
+
+[tool.poetry.group.dev.dependencies]
+langchain-cli = ">=0.0.15"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

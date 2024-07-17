@@ -1,0 +1,5 @@
+__pycache__
+.mypy*
+.venv
+**.env
+projects**
